@@ -1,0 +1,294 @@
+openapi: 3.1.0
+info:
+  title: NEXUS Workspace API
+  version: 1.0.0
+  description: API REST para tareas académicas, proyectos, documentos e historial del asistente.
+servers:
+  - url: http://localhost:8080
+tags:
+  - name: Tareas
+  - name: Proyectos
+  - name: Documentos
+  - name: Asistente
+paths:
+  /api/tasks:
+    get:
+      tags: [Tareas]
+      summary: Lista tareas con paginación
+      parameters:
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/Size'}
+        - {$ref: '#/components/parameters/Sort'}
+      responses:
+        '200':
+          description: Página de tareas
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/TaskPage'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+    post:
+      tags: [Tareas]
+      summary: Crea una tarea
+      description: Devuelve 201 y Location. Si code se omite, la API genera uno.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TaskRequest'}
+      responses:
+        '201':
+          description: Tarea creada
+          headers:
+            Location: {schema: {type: string}, description: Ruta de la tarea creada}
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/Task'}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+  /api/tasks/search:
+    get:
+      tags: [Tareas]
+      summary: Busca tareas por título sin distinguir mayúsculas
+      parameters:
+        - {name: name, in: query, required: true, schema: {type: string}}
+        - {$ref: '#/components/parameters/Page'}
+        - {$ref: '#/components/parameters/Size'}
+        - {$ref: '#/components/parameters/Sort'}
+      responses:
+        '200': {description: Resultados paginados, content: {application/json: {schema: {$ref: '#/components/schemas/TaskPage'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /api/tasks/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+    get:
+      tags: [Tareas]
+      summary: Consulta una tarea
+      responses:
+        '200': {description: Tarea, content: {application/json: {schema: {$ref: '#/components/schemas/Task'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [Tareas]
+      summary: Reemplaza los datos de una tarea
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/TaskRequest'}
+      responses:
+        '200': {description: Tarea actualizada, content: {application/json: {schema: {$ref: '#/components/schemas/Task'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/Unprocessable'}
+    delete:
+      tags: [Tareas]
+      summary: Elimina una tarea
+      responses:
+        '204': {description: Eliminada sin cuerpo de respuesta}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/projects:
+    get:
+      tags: [Proyectos]
+      summary: Lista proyectos
+      responses:
+        '200': {description: Lista, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Project'}}}}}
+    post:
+      tags: [Proyectos]
+      summary: Crea un proyecto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProjectRequest'}
+      responses:
+        '201': {description: Creado con Location, headers: {Location: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Project'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /api/projects/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+    get:
+      tags: [Proyectos]
+      summary: Consulta un proyecto
+      responses:
+        '200': {description: Proyecto, content: {application/json: {schema: {$ref: '#/components/schemas/Project'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+    put:
+      tags: [Proyectos]
+      summary: Actualiza un proyecto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ProjectRequest'}
+      responses:
+        '200': {description: Actualizado, content: {application/json: {schema: {$ref: '#/components/schemas/Project'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      tags: [Proyectos]
+      summary: Elimina un proyecto
+      responses:
+        '204': {description: Eliminado sin cuerpo de respuesta}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/documents:
+    get:
+      tags: [Documentos]
+      summary: Lista documentos
+      responses:
+        '200': {description: Lista, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/Document'}}}}}
+    post:
+      tags: [Documentos]
+      summary: Registra texto extraído de un PDF
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/DocumentRequest'}
+      responses:
+        '201': {description: Creado con Location, headers: {Location: {schema: {type: string}}}, content: {application/json: {schema: {$ref: '#/components/schemas/Document'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /api/documents/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: integer, format: int64}}
+    get:
+      tags: [Documentos]
+      summary: Consulta un documento
+      responses:
+        '200': {description: Documento, content: {application/json: {schema: {$ref: '#/components/schemas/Document'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      tags: [Documentos]
+      summary: Elimina un documento
+      responses:
+        '204': {description: Eliminado sin cuerpo de respuesta}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/assistant/messages:
+    get:
+      tags: [Asistente]
+      summary: Consulta el historial persistido
+      responses:
+        '200': {description: Historial, content: {application/json: {schema: {type: array, items: {$ref: '#/components/schemas/AssistantMessage'}}}}}
+    post:
+      tags: [Asistente]
+      summary: Envía una pregunta y contexto al asistente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: {type: string, maxLength: 2000}
+                context: {type: string, maxLength: 100000}
+      responses:
+        '201': {description: Respuesta guardada, content: {application/json: {schema: {$ref: '#/components/schemas/AssistantMessage'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+components:
+  parameters:
+    Page: {name: page, in: query, schema: {type: integer, minimum: 0, default: 0}}
+    Size: {name: size, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 10}}
+    Sort: {name: sort, in: query, description: 'Campo y dirección. Campos permitidos: id, code, title, course, date, time, priority, done, createdAt', schema: {type: string, default: id, example: 'title,asc'}}
+  responses:
+    BadRequest:
+      description: Datos o parámetros inválidos
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    NotFound:
+      description: Recurso no encontrado
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Conflict:
+      description: Código único duplicado
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+    Unprocessable:
+      description: Regla de negocio incumplida
+      content: {application/json: {schema: {$ref: '#/components/schemas/Error'}}}
+  schemas:
+    TaskRequest:
+      type: object
+      required: [title, date, time, priority, done, color]
+      properties:
+        code: {type: string, maxLength: 40, description: Opcional; se genera si se omite}
+        title: {type: string, maxLength: 160}
+        course: {type: string, maxLength: 80}
+        date: {type: string, format: date}
+        time: {type: string, example: '18:00'}
+        priority: {type: string, enum: [Alta, Media, Baja]}
+        done: {type: boolean}
+        active: {type: boolean, default: true}
+        color: {type: string, maxLength: 24}
+        estimatedHours: {type: number, minimum: 0.25, maximum: 999999.99, default: 1.0}
+    Task:
+      allOf:
+        - {$ref: '#/components/schemas/TaskRequest'}
+        - type: object
+          required: [id, code, course, active, estimatedHours, createdAt]
+          properties:
+            id: {type: integer, format: int64}
+            code: {type: string}
+            createdAt: {type: string, format: date-time}
+            updatedAt: {type: [string, 'null'], format: date-time}
+    TaskPage:
+      type: object
+      properties:
+        content: {type: array, items: {$ref: '#/components/schemas/Task'}}
+        page:
+          type: object
+          properties:
+            number: {type: integer}
+            size: {type: integer}
+            totalElements: {type: integer}
+            totalPages: {type: integer}
+    ProjectRequest:
+      type: object
+      required: [name, progress, color, due, steps]
+      properties:
+        name: {type: string, maxLength: 160}
+        course: {type: string, maxLength: 80}
+        progress: {type: integer, minimum: 0, maximum: 100}
+        color: {type: string, maxLength: 24}
+        due: {type: string, maxLength: 40}
+        steps: {type: string, maxLength: 160}
+    Project:
+      allOf:
+        - {$ref: '#/components/schemas/ProjectRequest'}
+        - type: object
+          properties:
+            id: {type: integer, format: int64}
+            createdAt: {type: string, format: date-time}
+            updatedAt: {type: [string, 'null'], format: date-time}
+    DocumentRequest:
+      type: object
+      required: [name, size, pages, added]
+      properties:
+        name: {type: string, maxLength: 255}
+        size: {type: string, maxLength: 20}
+        pages: {type: integer, minimum: 1, maximum: 8}
+        text: {type: string, maxLength: 100000}
+        added: {type: string, maxLength: 40}
+    Document:
+      allOf:
+        - {$ref: '#/components/schemas/DocumentRequest'}
+        - type: object
+          properties:
+            id: {type: integer, format: int64}
+            createdAt: {type: string, format: date-time}
+    AssistantMessage:
+      type: object
+      properties:
+        id: {type: string, format: uuid}
+        question: {type: string}
+        answer: {type: string}
+        createdAt: {type: string, format: date-time}
+    Error:
+      type: object
+      required: [timestamp, status, error, message, path, errors]
+      properties:
+        timestamp: {type: string, format: date-time}
+        status: {type: integer}
+        error: {type: string}
+        message: {type: string}
+        path: {type: string}
+        errors: {type: array, items: {type: string}}

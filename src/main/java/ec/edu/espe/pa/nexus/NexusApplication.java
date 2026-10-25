@@ -1,4 +1,4 @@
-package com.example.nexus;
+package ec.edu.espe.pa.nexus;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

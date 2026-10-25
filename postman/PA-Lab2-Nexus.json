@@ -1,0 +1,95 @@
+{
+  "info": {
+    "_postman_id": "e5bbd5d8-3f16-4946-a8a2-b8fa7a4d0051",
+    "name": "PA-Lab2-Nexus",
+    "description": "Contrato funcional de tareas NEXUS. Ejecutar en orden: E1-E5, N1-N7, E6-E7.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [{"key": "testCode", "value": ""}],
+  "item": [
+    {
+      "name": "01-Casos exitosos",
+      "item": [
+        {
+          "name": "E1 - Crear tarea",
+          "event": [
+            {"listen": "prerequest", "script": {"type": "text/javascript", "exec": ["pm.collectionVariables.set('testCode', 'LAB-' + Date.now());"]}},
+            {"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('201 Created', () => pm.response.to.have.status(201));", "pm.test('Location presente', () => pm.response.to.have.header('Location'));", "pm.test('Respuesta contiene id', () => pm.expect(pm.response.json().id).to.be.a('number'));", "pm.environment.set('taskId', pm.response.json().id);"]}}
+          ],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"code\": \"{{testCode}}\",\n  \"title\": \"Preparar informe de laboratorio\",\n  \"course\": \"Programación avanzada\",\n  \"date\": \"2026-11-01\",\n  \"time\": \"18:00\",\n  \"priority\": \"Alta\",\n  \"done\": false,\n  \"active\": true,\n  \"color\": \"violet\",\n  \"estimatedHours\": 2.5\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{baseUrl}}/api/tasks", "host": ["{{baseUrl}}"], "path": ["api", "tasks"]}},
+          "response": []
+        },
+        {
+          "name": "E2 - Consultar por id",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));", "pm.test('Devuelve la tarea creada', () => pm.expect(pm.response.json().id).to.eql(Number(pm.environment.get('taskId'))));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "{{taskId}}"]}}, "response": []
+        },
+        {
+          "name": "E3 - Listar con paginación",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));", "pm.test('Incluye content y metadatos page', () => { const b = pm.response.json(); pm.expect(b.content).to.be.an('array'); pm.expect(b.page).to.include.all.keys('number', 'size', 'totalElements', 'totalPages'); });"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/tasks?page=0&size=5&sort=title,asc", "host": ["{{baseUrl}}"], "path": ["api", "tasks"], "query": [{"key": "page", "value": "0"}, {"key": "size", "value": "5"}, {"key": "sort", "value": "title,asc"}]}}, "response": []
+        },
+        {
+          "name": "E4 - Buscar por título",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));", "pm.test('La tarea coincide con la búsqueda', () => pm.expect(pm.response.json().content.some(t => t.id === Number(pm.environment.get('taskId')))).to.eql(true));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/tasks/search?name=informe", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "search"], "query": [{"key": "name", "value": "informe"}]}}, "response": []
+        },
+        {
+          "name": "E5 - Actualizar tarea",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('200 OK', () => pm.response.to.have.status(200));", "pm.test('Tiene marca de actualización', () => pm.expect(pm.response.json().updatedAt).to.be.a('string'));", "pm.test('El título fue actualizado', () => pm.expect(pm.response.json().title).to.eql('Preparar informe corregido'));"]}}],
+          "request": {"method": "PUT", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"code\": \"{{testCode}}\",\n  \"title\": \"Preparar informe corregido\",\n  \"course\": \"Programación avanzada\",\n  \"date\": \"2026-11-02\",\n  \"time\": \"19:00\",\n  \"priority\": \"Media\",\n  \"done\": false,\n  \"active\": true,\n  \"color\": \"blue\",\n  \"estimatedHours\": 3.0\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{baseUrl}}/api/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "{{taskId}}"]}}, "response": []
+        }
+      ]
+    },
+    {
+      "name": "02-Casos negativos y eliminación",
+      "item": [
+        {
+          "name": "N1 - Validación de campos obligatorios (400)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));", "pm.test('Formato ErrorResponse', () => { const b = pm.response.json(); pm.expect(b).to.have.all.keys('timestamp', 'status', 'error', 'message', 'path', 'errors'); pm.expect(b.errors).to.be.an('array').that.is.not.empty; });"]}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{baseUrl}}/api/tasks", "host": ["{{baseUrl}}"], "path": ["api", "tasks"]}}, "response": []
+        },
+        {
+          "name": "N2 - Enumeración no válida (400)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));", "pm.test('Formato ErrorResponse', () => pm.expect(pm.response.json()).to.have.all.keys('timestamp', 'status', 'error', 'message', 'path', 'errors'));"]}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"title\":\"Tarea\",\"date\":\"2026-11-01\",\"time\":\"18:00\",\"priority\":\"Urgente\",\"done\":false,\"color\":\"blue\"}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{baseUrl}}/api/tasks", "host": ["{{baseUrl}}"], "path": ["api", "tasks"]}}, "response": []
+        },
+        {
+          "name": "N3 - Id no numérico (400)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('400 Bad Request', () => pm.response.to.have.status(400));", "pm.test('Formato ErrorResponse', () => pm.expect(pm.response.json()).to.have.all.keys('timestamp', 'status', 'error', 'message', 'path', 'errors'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/tasks/abc", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "abc"]}}, "response": []
+        },
+        {
+          "name": "N4 - Tarea inexistente (404)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('404 Not Found', () => pm.response.to.have.status(404));", "pm.test('Formato ErrorResponse', () => pm.expect(pm.response.json()).to.have.all.keys('timestamp', 'status', 'error', 'message', 'path', 'errors'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/tasks/999999", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "999999"]}}, "response": []
+        },
+        {
+          "name": "N5 - Código duplicado (409)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('409 Conflict', () => pm.response.to.have.status(409));", "pm.test('Formato ErrorResponse', () => pm.expect(pm.response.json()).to.have.all.keys('timestamp', 'status', 'error', 'message', 'path', 'errors'));"]}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"code\": \"{{testCode}}\", \"title\": \"Código repetido\", \"date\": \"2026-11-01\", \"time\": \"18:00\", \"priority\": \"Alta\", \"done\": false, \"color\": \"blue\"\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{baseUrl}}/api/tasks", "host": ["{{baseUrl}}"], "path": ["api", "tasks"]}}, "response": []
+        },
+        {
+          "name": "N6 - Regla de negocio (422)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('422 Unprocessable Entity', () => pm.response.to.have.status(422));", "pm.test('Formato ErrorResponse', () => pm.expect(pm.response.json()).to.have.all.keys('timestamp', 'status', 'error', 'message', 'path', 'errors'));"]}}],
+          "request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\"title\":\"Regla inactiva\",\"date\":\"2026-11-01\",\"time\":\"18:00\",\"priority\":\"Alta\",\"done\":true,\"active\":false,\"color\":\"blue\"}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{baseUrl}}/api/tasks", "host": ["{{baseUrl}}"], "path": ["api", "tasks"]}}, "response": []
+        },
+        {
+          "name": "N7 - Método PATCH no soportado (405)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('405 Method Not Allowed', () => pm.response.to.have.status(405));", "pm.test('Formato ErrorResponse', () => pm.expect(pm.response.json()).to.have.all.keys('timestamp', 'status', 'error', 'message', 'path', 'errors'));"]}}],
+          "request": {"method": "PATCH", "url": {"raw": "{{baseUrl}}/api/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "{{taskId}}"]}}, "response": []
+        },
+        {
+          "name": "E6 - Eliminar tarea (204)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('204 No Content', () => pm.response.to.have.status(204));", "pm.test('Sin cuerpo de respuesta', () => pm.expect(pm.response.text()).to.eql(''));"]}}],
+          "request": {"method": "DELETE", "url": {"raw": "{{baseUrl}}/api/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "{{taskId}}"]}}, "response": []
+        },
+        {
+          "name": "E7 - Confirmar eliminación (404)",
+          "event": [{"listen": "test", "script": {"type": "text/javascript", "exec": ["pm.test('404 Not Found tras eliminar', () => pm.response.to.have.status(404));", "pm.test('Formato ErrorResponse', () => pm.expect(pm.response.json()).to.have.all.keys('timestamp', 'status', 'error', 'message', 'path', 'errors'));"]}}],
+          "request": {"method": "GET", "url": {"raw": "{{baseUrl}}/api/tasks/{{taskId}}", "host": ["{{baseUrl}}"], "path": ["api", "tasks", "{{taskId}}"]}}, "response": []
+        }
+      ]
+    }
+  ]
+}

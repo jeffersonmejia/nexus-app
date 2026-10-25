@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: nexus-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-nexus}
+      POSTGRES_USER: ${DB_USER:-nexus_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en el entorno antes de iniciar Docker Compose}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - nexus-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-nexus_user} -d ${DB_NAME:-nexus}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  nexus-postgres-data:
