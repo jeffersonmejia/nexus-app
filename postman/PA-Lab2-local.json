@@ -2,8 +2,24 @@
   "id": "3e599130-653a-4907-ae09-b8cd63bd2127",
   "name": "PA-Lab2-local",
   "values": [
-    {"key": "baseUrl", "value": "http://localhost:8080", "type": "default", "enabled": true},
-    {"key": "taskId", "value": "", "type": "default", "enabled": true}
+    {
+      "value": "http://localhost:8080",
+      "type": "default",
+      "key": "baseUrl",
+      "enabled": true
+    },
+    {
+      "value": "",
+      "type": "default",
+      "key": "taskId",
+      "enabled": true
+    },
+    {
+      "value": "",
+      "type": "default",
+      "key": "testCode",
+      "enabled": true
+    }
   ],
   "_postman_variable_scope": "environment",
   "_postman_exported_using": "Postman/11"

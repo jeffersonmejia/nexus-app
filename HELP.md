@@ -39,7 +39,7 @@ El contrato OpenAPI 3.1 está en [docs/openapi.yaml](docs/openapi.yaml). Colecci
 - `postman/PA-Lab2-Nexus.json`
 - `postman/PA-Lab2-local.json`
 
-Importa ambos en Postman, selecciona el entorno `PA-Lab2-local` y ejecuta la colección completa en orden.
+Importa ambos JSON en Postman, selecciona `PA-Lab2-local` y ejecuta la colección completa en orden. El entorno ya configura `baseUrl` como `http://localhost:8080`, además de `taskId` y `testCode` que la colección llena durante la ejecución. Si ejecutas la API en otro puerto, cambia `baseUrl` en Postman. El `.env` de la raíz es solo para Docker/PostgreSQL; Postman no lo importa ni necesita credenciales de la base de datos.
 
 | Método | Ruta | Resultado |
 |---|---|---|
@@ -66,3 +66,4 @@ Las tablas usan `spring.jpa.hibernate.ddl-auto=update`; las claves y valores se 
 ## Alcance
 
 PDF.js extrae texto localmente de hasta ocho páginas de cada PDF, que luego se guarda en PostgreSQL. El asistente responde con un texto de demostración; no hay un proveedor de modelo de IA configurado.
+
