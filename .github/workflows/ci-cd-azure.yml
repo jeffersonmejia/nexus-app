@@ -1,35 +1,95 @@
-name: CD to Azure Container Apps
+name: CI/CD Azure Container Apps
 
 on:
-  workflow_run:
-    workflows: [CI]
-    types: [completed]
+  push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'frontend/**'
+      - 'pom.xml'
+      - 'mvnw'
+      - '.mvn/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+      - 'infra/**'
+      - '.github/workflows/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'frontend/**'
+      - 'pom.xml'
+      - 'mvnw'
+      - '.mvn/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+      - 'infra/**'
+      - '.github/workflows/**'
 
 permissions:
   contents: read
-  id-token: write
-
-env:
-  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-  AZURE_APP_LOCATION: ${{ vars.AZURE_APP_LOCATION }}
-  AZURE_DATABASE_LOCATION: ${{ vars.AZURE_DATABASE_LOCATION }}
-  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
-  ACR_NAME: ${{ vars.ACR_NAME }}
-  APP_NAME: ${{ vars.APP_NAME }}
-  TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
-  TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
-  TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
-  TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
 
 jobs:
-  deploy:
-    if: >-
-      github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'push' &&
-      github.event.workflow_run.head_branch == 'main'
+  ci:
+    name: Tests and build
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Run backend tests
+        run: bash ./mvnw --batch-mode --no-transfer-progress test
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend unit tests
+        working-directory: frontend
+        run: npm test
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Package application
+        run: bash ./mvnw --batch-mode --no-transfer-progress -DskipTests package
+
+  cd:
+    name: Deploy to Azure Container Apps
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     env:
+      AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+      AZURE_APP_LOCATION: ${{ vars.AZURE_APP_LOCATION }}
+      AZURE_DATABASE_LOCATION: ${{ vars.AZURE_DATABASE_LOCATION }}
+      AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      ACR_NAME: ${{ vars.ACR_NAME }}
+      APP_NAME: ${{ vars.APP_NAME }}
+      TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
+      TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+      TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+      TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
       ARM_USE_OIDC: true
       ARM_USE_AZUREAD: true
       ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
@@ -43,10 +103,8 @@ jobs:
       TF_VAR_app_name: ${{ vars.APP_NAME }}
       TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
     steps:
-      - name: Checkout the commit validated by CI
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Sign in to Azure with OIDC
         uses: azure/login@v2
@@ -86,7 +144,7 @@ jobs:
         run: terraform -chdir=infra apply -input=false -auto-approve
 
       - name: Build and push container image in ACR
-        run: az acr build --registry "$ACR_NAME" --image "nexus-ai:${{ github.event.workflow_run.head_sha || github.sha }}" .
+        run: az acr build --registry "$ACR_NAME" --image "nexus-ai:${GITHUB_SHA}" .
 
       - name: Update Container App
         run: |
@@ -94,7 +152,7 @@ jobs:
           az containerapp update \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$APP_NAME" \
-            --image "$acr_login_server/nexus-ai:${{ github.event.workflow_run.head_sha || github.sha }}" \
+            --image "$acr_login_server/nexus-ai:${GITHUB_SHA}" \
             --output none
 
       - name: Show deployed URL
