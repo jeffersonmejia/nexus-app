@@ -1,0 +1,25 @@
+# Maven
+/target/
+**/target/
+
+# Frontend
+/frontend/node_modules/
+/frontend/dist/
+
+# IDEs
+.idea/
+*.iws
+*.iml
+*.ipr
+out/
+.vscode/
+
+# Java / build tooling
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache/
+bin/
+.apt_generated/
