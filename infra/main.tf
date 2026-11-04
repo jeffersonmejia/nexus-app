@@ -50,6 +50,12 @@ variable "database_location" {
   default     = "brazilsouth"
 }
 
+variable "database_server_name" {
+  description = "Globally unique name for the PostgreSQL Flexible Server."
+  type        = string
+  default     = "nexusai20261104jpdb"
+}
+
 variable "container_image" {
   description = "Image deployed to Container Apps."
   type        = string
@@ -83,6 +89,7 @@ module "networking" {
 module "database" {
   source                 = "./modules/database"
   app_name               = var.app_name
+  server_name            = var.database_server_name
   resource_group_name    = data.azurerm_resource_group.app.name
   location               = var.database_location
   subnet_id              = module.networking.database_subnet_id
