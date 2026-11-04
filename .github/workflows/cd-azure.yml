@@ -1,20 +1,10 @@
-name: Deploy to Azure Container Apps
+name: CD to Azure Container Apps
 
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
-    paths:
-      - 'src/**'
-      - 'frontend/**'
-      - 'pom.xml'
-      - 'mvnw'
-      - '.mvn/**'
-      - 'Dockerfile'
-      - 'docker-compose.yml'
-      - '.dockerignore'
-      - 'infra/**'
-      - '.github/workflows/deploy-azure.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,6 +24,10 @@ env:
 
 jobs:
   deploy:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     env:
       ARM_USE_OIDC: true
@@ -49,8 +43,10 @@ jobs:
       TF_VAR_app_name: ${{ vars.APP_NAME }}
       TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
     steps:
-      - name: Checkout
+      - name: Checkout the commit validated by CI
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Sign in to Azure with OIDC
         uses: azure/login@v2
@@ -90,7 +86,7 @@ jobs:
         run: terraform -chdir=infra apply -input=false -auto-approve
 
       - name: Build and push container image in ACR
-        run: az acr build --registry "$ACR_NAME" --image "nexus-ai:${GITHUB_SHA}" .
+        run: az acr build --registry "$ACR_NAME" --image "nexus-ai:${{ github.event.workflow_run.head_sha || github.sha }}" .
 
       - name: Update Container App
         run: |
@@ -98,7 +94,7 @@ jobs:
           az containerapp update \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --name "$APP_NAME" \
-            --image "$acr_login_server/nexus-ai:${GITHUB_SHA}" \
+            --image "$acr_login_server/nexus-ai:${{ github.event.workflow_run.head_sha || github.sha }}" \
             --output none
 
       - name: Show deployed URL

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Activity, AlarmClock, ArrowDown, ArrowRight, ArrowUpRight, Bell, BookOpen, CalendarDays, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Circle, CircleCheck, Clock3, FileText, Filter, FolderKanban, GraduationCap, LayoutDashboard, ListTodo, LogOut, Menu, MessageCircle, MoreHorizontal, Network, Plus, Search, Send, Settings2, Sparkles, Sun, Target, Upload, X } from 'lucide-react';
 import api from './api';
+import { filterTasks, getTaskStats, parseStoredValue, toggleTask as toggleTaskState } from './tasks';
 
 const seedTasks = [
  {id:1,title:'Ensayo de literatura latinoamericana',course:'Literatura',date:'2026-10-21',time:'23:59',priority:'Alta',done:false,color:'violet'},
@@ -13,7 +14,7 @@ const weekdays=['Lun','Mar','Mié','Jue','Vie'];
 const schedule=[{hour:'08:00',cells:[['Cálculo II','Aula 302','blue'],null,['Cálculo II','Aula 302','blue'],null,['Cálculo II','Aula 302','blue']]},{hour:'09:00',cells:[['Biología','Lab. 2','green'],['Literatura','Aula 105','violet'],null,['Literatura','Aula 105','violet'],['Biología','Lab. 2','green']]},{hour:'10:00',cells:[null,['Arquitectura','Aula 401','orange'],['Biología','Lab. 2','green'],null,['Arquitectura','Aula 401','orange']]},{hour:'11:00',cells:[['Arquitectura','Aula 401','orange'],null,null,['Cálculo II','Aula 302','blue'],null]}];
 const initialMessages=[{role:'assistant',text:'¡Hola, Maiquel! Soy tu asistente de estudio. Puedo ayudarte a entender tus materiales o crear un plan de estudio. ¿Qué necesitas hoy?'}];
 const today='2026-10-20';
-function read(key,fallback){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
+function read(key,fallback){return parseStoredValue(localStorage.getItem(key),fallback)}
 function IconButton({children,label,onClick,className=''}){return <button className={`icon-button ${className}`} aria-label={label} title={label} onClick={onClick}>{children}</button>}
 function Progress({value,color='violet'}){return <div className="progress-track"><span className={`progress-fill ${color}`} style={{width:`${value}%`}}/></div>}
 function Tag({children,color='neutral'}){return <span className={`tag ${color}`}>{children}</span>}
@@ -22,9 +23,9 @@ function App(){
  const fileRef=useRef(null),chatEnd=useRef(null);
  useEffect(()=>localStorage.setItem('nexus_tasks',JSON.stringify(tasks)),[tasks]);useEffect(()=>localStorage.setItem('nexus_projects',JSON.stringify(projects)),[projects]);useEffect(()=>localStorage.setItem('nexus_files',JSON.stringify(files)),[files]);useEffect(()=>{document.documentElement.dataset.theme=dark?'dark':'light';localStorage.setItem('nexus_dark',JSON.stringify(dark))},[dark]);useEffect(()=>{chatEnd.current?.scrollIntoView({behavior:'smooth'})},[messages]);useEffect(()=>{const handler=()=>notify('Tu sesión expiró. Inicia sesión de nuevo.');window.addEventListener('nexus:unauthorized',handler);return()=>window.removeEventListener('nexus:unauthorized',handler)},[]);
  function notify(text){setToast(text);window.clearTimeout(notify.timer);notify.timer=window.setTimeout(()=>setToast(''),2800)}
- const pending=tasks.filter(t=>!t.done).length,completed=tasks.filter(t=>t.done).length,overdue=tasks.filter(t=>!t.done&&t.date<today).length;
- const filteredTasks=useMemo(()=>tasks.filter(t=>(filter==='Todas'||(filter==='Pendientes'?!t.done:t.done))&&`${t.title} ${t.course}`.toLowerCase().includes(query.toLowerCase())),[tasks,filter,query]);
- function toggleTask(id){setTasks(v=>v.map(t=>t.id===id?{...t,done:!t.done}:t))}
+ const {pending,completed,overdue}=getTaskStats(tasks,today);
+ const filteredTasks=useMemo(()=>filterTasks(tasks,filter,query),[tasks,filter,query]);
+ function toggleTask(id){setTasks(v=>toggleTaskState(v,id))}
  function addTask(e){e.preventDefault();const data=new FormData(e.currentTarget);setTasks(v=>[{id:Date.now(),title:data.get('title'),course:data.get('course')||'Personal',date:data.get('date')||today,time:data.get('time')||'18:00',priority:data.get('priority'),done:false,color:'violet'},...v]);setModal(false);notify('Actividad creada')}
  function deleteTask(id){setTasks(v=>v.filter(t=>t.id!==id));notify('Actividad eliminada')}
  async function uploadFile(event){const file=event.target.files?.[0];if(!file)return;if(file.type!=='application/pdf'){notify('Selecciona un archivo PDF');return}let text='';try{const pdfjs=await import('pdfjs-dist');pdfjs.GlobalWorkerOptions.workerSrc=`https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;const doc=await pdfjs.getDocument({data:await file.arrayBuffer()}).promise;for(let i=1;i<=Math.min(doc.numPages,8);i++){const page=await doc.getPage(i);const content=await page.getTextContent();text+=content.items.map(item=>item.str).join(' ')+'\n'}}catch{ text='No se pudo extraer el texto automáticamente en este navegador.'}setFiles(v=>[{id:Date.now(),name:file.name,size:(file.size/1024/1024).toFixed(1),pages:(text.match(/\n/g)||[]).length+1,text,added:new Date().toLocaleDateString('es-EC')},...v]);event.target.value='';notify('Documento añadido a tu biblioteca')}
