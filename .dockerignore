@@ -1,0 +1,12 @@
+.git
+.github
+.env
+.env.*
+.terraform
+*.tfstate
+*.tfvars
+.mvn/wrapper/maven-wrapper.jar
+frontend/node_modules
+frontend/dist
+target
+README.md

@@ -1,0 +1,105 @@
+name: Deploy to Azure Container Apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'frontend/**'
+      - 'pom.xml'
+      - 'mvnw'
+      - '.mvn/**'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+      - '.dockerignore'
+      - 'infra/**'
+      - '.github/workflows/deploy-azure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
+  AZURE_APP_LOCATION: ${{ vars.AZURE_APP_LOCATION }}
+  AZURE_DATABASE_LOCATION: ${{ vars.AZURE_DATABASE_LOCATION }}
+  AZURE_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+  ACR_NAME: ${{ vars.ACR_NAME }}
+  APP_NAME: ${{ vars.APP_NAME }}
+  TF_STATE_RESOURCE_GROUP: ${{ vars.TF_STATE_RESOURCE_GROUP }}
+  TF_STATE_STORAGE_ACCOUNT: ${{ vars.TF_STATE_STORAGE_ACCOUNT }}
+  TF_STATE_CONTAINER: ${{ vars.TF_STATE_CONTAINER }}
+  TF_STATE_KEY: ${{ vars.TF_STATE_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      ARM_USE_OIDC: true
+      ARM_USE_AZUREAD: true
+      ARM_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+      ARM_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+      ARM_SUBSCRIPTION_ID: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_subscription_id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      TF_VAR_resource_group_name: ${{ vars.AZURE_RESOURCE_GROUP }}
+      TF_VAR_app_location: ${{ vars.AZURE_APP_LOCATION }}
+      TF_VAR_database_location: ${{ vars.AZURE_DATABASE_LOCATION }}
+      TF_VAR_acr_name: ${{ vars.ACR_NAME }}
+      TF_VAR_app_name: ${{ vars.APP_NAME }}
+      TF_VAR_postgres_admin_password: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Sign in to Azure with OIDC
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Install Container Apps CLI extension
+        run: az extension add --name containerapp --upgrade --yes
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Keep the current image while applying infrastructure changes
+        id: current-image
+        shell: bash
+        run: |
+          image=$(az containerapp show --resource-group "$AZURE_RESOURCE_GROUP" --name "$APP_NAME" --query 'properties.template.containers[0].image' --output tsv 2>/dev/null || true)
+          if [ -z "$image" ]; then image='mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'; fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Initialize Terraform with remote state
+        run: |
+          terraform -chdir=infra init -input=false \
+            -backend-config="resource_group_name=$TF_STATE_RESOURCE_GROUP" \
+            -backend-config="storage_account_name=$TF_STATE_STORAGE_ACCOUNT" \
+            -backend-config="container_name=$TF_STATE_CONTAINER" \
+            -backend-config="key=$TF_STATE_KEY" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Apply infrastructure
+        env:
+          TF_VAR_container_image: ${{ steps.current-image.outputs.image }}
+        run: terraform -chdir=infra apply -input=false -auto-approve
+
+      - name: Build and push container image in ACR
+        run: az acr build --registry "$ACR_NAME" --image "nexus-ai:${GITHUB_SHA}" .
+
+      - name: Update Container App
+        run: |
+          acr_login_server=$(terraform -chdir=infra output -raw acr_login_server)
+          az containerapp update \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$APP_NAME" \
+            --image "$acr_login_server/nexus-ai:${GITHUB_SHA}" \
+            --output none
+
+      - name: Show deployed URL
+        run: terraform -chdir=infra output -raw container_app_url
