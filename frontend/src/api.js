@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api', timeout: 12000 });
+const defaultBaseURL = import.meta.env.DEV ? 'http://localhost:8082/api' : '/api';
+const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || defaultBaseURL, timeout: 12000 });
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('nexus_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
