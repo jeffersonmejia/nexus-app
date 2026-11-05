@@ -62,6 +62,11 @@ resource "azurerm_container_app" "app" {
     value = var.database_password
   }
 
+  secret {
+    name  = "jwt-secret"
+    value = var.jwt_secret
+  }
+
   ingress {
     external_enabled = true
     target_port      = 8082
@@ -101,6 +106,11 @@ resource "azurerm_container_app" "app" {
       env {
         name        = "SPRING_DATASOURCE_PASSWORD"
         secret_name = "postgres-password"
+      }
+
+      env {
+        name        = "JWT_SECRET"
+        secret_name = "jwt-secret"
       }
     }
   }

@@ -74,6 +74,12 @@ variable "postgres_admin_password" {
   sensitive   = true
 }
 
+variable "jwt_secret" {
+  description = "Signing secret for application JWTs."
+  type        = string
+  sensitive   = true
+}
+
 data "azurerm_resource_group" "app" {
   name = var.resource_group_name
 }
@@ -110,6 +116,7 @@ module "container_app" {
   database_fqdn       = module.database.fqdn
   database_username   = var.postgres_admin_username
   database_password   = var.postgres_admin_password
+  jwt_secret          = var.jwt_secret
 }
 
 output "container_app_url" {
