@@ -1,18 +1,15 @@
 # NEXUS AI · Frontend
 
-Interfaz académica responsive construida con React, Vite y Axios. Incluye datos de demostración persistidos en el navegador; no requiere un backend para explorar las pantallas.
-
-## Requisitos
-
-- Node.js 18 o superior
+Interfaz académica responsive construida con React, Vite y Axios. Para la configuración de Docker, Spring Boot y PostgreSQL, consulta [HELP.md](../HELP.md).
 
 ## Desarrollo
 
 ```bash
-cd frontend
-npm install
+npm ci
 npm run dev
 ```
+
+El frontend corre en `http://localhost:5173` y llama a `http://localhost:8080/api`. Puedes definir otra URL con `VITE_API_URL` en un archivo `frontend/.env` local. El cliente Axios adjunta `nexus_token` si existe, aunque esta versión de la API no incluye autenticación.
 
 ## Compilar
 
@@ -21,8 +18,8 @@ npm run build
 npm run preview
 ```
 
-Para conectar el backend, crea `frontend/.env` con `VITE_API_URL=http://localhost:8080/api`. El cliente Axios adjunta `nexus_token` como bearer en cada solicitud y limpia ese token al recibir HTTP 401.
+Vite genera `dist/`; Maven copia ese directorio a los recursos estáticos de Spring Boot cuando ejecutas o empaquetas el backend.
 
-### Alcance de integración
+## Documentos y asistente
 
-El flujo de usuario actual funciona en el navegador con `localStorage`; el inicio de sesión y la generación de respuestas IA quedan listos para conectarse a endpoints Spring Boot. Los PDF se leen localmente en el navegador mediante PDF.js (hasta ocho páginas para extraer texto).
+PDF.js extrae texto localmente de hasta ocho páginas por documento. El texto se guarda en PostgreSQL junto a los datos del documento. El historial del asistente también se conserva en PostgreSQL; sus respuestas son de demostración porque no hay un proveedor de IA configurado.
